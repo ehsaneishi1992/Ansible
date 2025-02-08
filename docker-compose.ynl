@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  ansible:
+    build: .
+    container_name: ansible-container
+    volumes:
+      - ./playbooks:/ansible/playbooks
+      - ./ansible.cfg:/etc/ansible/ansible.cfg  # Optional Ansible configuration
+    stdin_open: true
+    tty: true
