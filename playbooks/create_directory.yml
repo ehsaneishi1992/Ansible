@@ -1,0 +1,14 @@
+---
+- name: Create directory on storage servers
+  hosts: developer_servers
+  become: yes
+#  vars_files:
+#    - /ansible/playbooks/vault.yml
+  tasks:
+    - name: Ensure the directory exists
+      file:
+        path: /datastorage/storage/sale1404
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
