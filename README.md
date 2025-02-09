@@ -26,6 +26,10 @@ Add this line at the end:
 ```sql
 SERVER_USERNAME ALL=(ALL) NOPASSWD: ALL
 ```
+and then modify favaadmin's sudo permissions:
+```bash
+sudo usermod -aG sudo favaadmin
+```
 Now, Ansible won't ask for a <code>sudo</code> password when running <code>become: yes</code>.
 
 ### 1. Use SSH Key Authentication (Best Practice)
