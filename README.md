@@ -15,15 +15,6 @@ To start an interactive Ansible container:
 ```bash
 docker-compose run ansible bash || docker-compose up -d 
 ```
-### Use an Encrypted Vault (Best Practice for Security)
-Instead of storing the password in plain text, use Ansible Vault to encrypt it.
-Create an encrypted vault fil
-```bash
-EDITOR=nano ansible-vault create /ansible/playbooks/vault.yml
-```
-```bash
-EDITOR=nano ansible-vault edit /ansible/playbooks/vault.yml
-```
 
 ### Configure Passwordless Sudo (If Allowed)
 If your servers allow it, configure passwordless sudo for Ansible:
@@ -37,7 +28,7 @@ SERVER_USERNAME ALL=(ALL) NOPASSWD: ALL
 ```
 Now, Ansible won't ask for a <code>sudo</code> password when running <code>become: yes</code>.
 
-### Use SSH Key Authentication (Best Practice)
+### 1. Use SSH Key Authentication (Best Practice)
 For secure and efficient management of multiple servers, SSH key authentication is the preferred method.
 Step 1: Generate an SSH Key Pair (If You Don't Have One)
 If you haven't already created an SSH key pair for Ansible, you can generate it with:
@@ -51,11 +42,21 @@ ssh-copy-id -i ~/.ssh/ansible_id_rsa.pub SERVER_USERNAME@IP_SERVER
 ```
 Repeat this step for all servers. If the number of servers is large, you can automate this with a script.
 
+### 2. Use an Encrypted Vault if use username and password to login to server (Best Practice for Security)
+Instead of storing the password in plain text, use Ansible Vault to encrypt it.
+Create an encrypted vault fil 
+```bash
+EDITOR=nano ansible-vault create /ansible/playbooks/vault.yml
+```
+```bash
+EDITOR=nano ansible-vault edit /ansible/playbooks/vault.yml
+```
 
 ### Now you can run the playbook inside the container:
 ```bash
-ansible-playbook -i /ansible/playbooks/inventory /ansible/playbooks/create_directory.yml --ask-vault-pass
+ansible-playbook -i /ansible/playbooks/inventory /ansible/playbooks/create_directory.yml 
 ```
 ```bash
 ansible-playbook -i /ansible/playbooks/inventory /ansible/playbooks/create_directory.yml --ask-vault-pass
 ```
+
