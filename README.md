@@ -5,6 +5,25 @@
   <code>ansible.cfg</code> (optional, for configuration)</li><li>
   <code>playbooks/</code> (directory to store Ansible playbooks)</li></ul>
 
+```graphsq
+ansible/
+├── inventory/
+│   ├── production.ini
+│   ├── staging.ini
+│   ├── group_vars/
+│   │   ├── all.yml
+│   │   ├── db_servers.yml  # Store MySQL passwords here
+├── playbooks/
+│   ├── create_directory.yml
+│   ├── run_mysql_query.yml  # The playbook for executing MySQL queries
+├── roles/
+│   ├── database/
+│   │   ├── tasks/
+│   │   │   ├── main.yml
+│   │   ├── templates/
+│   │   │   ├── query.sql.j2
+├── ansible.cfg
+```
 
 ### Build and Run the Container
 Run the following command to build the Ansible container:
