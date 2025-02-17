@@ -3,4 +3,4 @@ dbServer1:
   mysql_password: "MYSQL_ROOT_PASS"
   mysql_database: "officeas"
   mysql_port: 3306
-  sql_query: "SELECT RowID, UserCount, MD5UserCount,  OnlineUserCount, MD5OnlineUserCount FROM oa_secretariat ;"
+  sql_query: "SELECT * FROM oa_users;"
