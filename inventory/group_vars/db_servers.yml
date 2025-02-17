@@ -1,0 +1,6 @@
+dbServer1:
+  mysql_user: "root"
+  mysql_password: "cwUb5vlIjy48KQxM"
+  mysql_database: "officeas"
+  mysql_port: 3306
+  sql_query: "SELECT RowID, UserCount, MD5UserCount,  OnlineUserCount, MD5OnlineUserCount FROM oa_secretariat ;"
