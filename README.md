@@ -9,20 +9,12 @@
 ansible/
 ├── inventory/
 │   ├── production.ini
-│   ├── staging.ini
 │   ├── group_vars/
-│   │   ├── all.yml
 │   │   ├── db_servers.yml  # Store MySQL passwords here
 ├── playbooks/
+│   ├── install_mysql_client.yml
 │   ├── create_directory.yml
 │   ├── run_mysql_query.yml  # The playbook for executing MySQL queries
-├── roles/
-│   ├── database/
-│   │   ├── tasks/
-│   │   │   ├── main.yml
-│   │   ├── templates/
-│   │   │   ├── query.sql.j2
-├── ansible.cfg
 ```
 
 ### Build and Run the Container
@@ -77,9 +69,9 @@ EDITOR=nano ansible-vault edit /ansible/playbooks/vault.yml
 
 ### Now you can run the playbook inside the container:
 ```bash
-ansible-playbook -i /ansible/playbooks/inventory /ansible/playbooks/create_directory.yml 
+ansible-playbook -i /ansible/playbooks/inventory/production.ini /ansible/playbooks/create_directory.yml 
 ```
 ```bash
-ansible-playbook -i /ansible/playbooks/inventory /ansible/playbooks/create_directory.yml --ask-vault-pass
+ansible-playbook -i /ansible/playbooks/inventory/production.ini /ansible/playbooks/create_directory.yml --ask-vault-pass
 ```
 
