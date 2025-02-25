@@ -57,6 +57,13 @@ ssh-copy-id -i ~/.ssh/ansible_id_rsa.pub SERVER_USERNAME@IP_SERVER
 ```
 Repeat this step for all servers. If the number of servers is large, you can automate this with a script.
 
+Add or modify the following line:
+```
+PubkeyAcceptedAlgorithms +ssh-rsa,rsa-sha2-512,rsa-sha2-256
+```
+```
+systemctl restart ssh
+```
 ### 2. Use an Encrypted Vault if use username and password to login to server (Best Practice for Security)
 Instead of storing the password in plain text, use Ansible Vault to encrypt it.
 Create an encrypted vault fil 
