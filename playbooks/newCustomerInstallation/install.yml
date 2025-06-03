@@ -1,0 +1,160 @@
+---
+- name: Install Docker, Docker Compose, and Git
+  hosts: new_customer_servers
+  become: yes
+
+  vars:
+    docker_user: "{{ ansible_user }}"  # override if needed
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+      changed_when: false
+
+    - name: Check if Docker is already installed
+      command: docker --version
+      register: docker_installed
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Install docker.io and docker-compose
+      apt:
+        name:
+          - docker.io
+          - docker-compose
+        state: present
+      when: docker_installed.rc != 0
+
+    - name: Enable and start Docker service
+      systemd:
+        name: docker
+        enabled: yes
+        state: started
+
+    - name: Check if user is in docker group
+      command: id -nG {{ docker_user }}
+      register: user_groups
+      changed_when: false
+
+    - name: Add user to docker group if not already in
+      user:
+        name: "{{ docker_user }}"
+        groups: docker
+        append: yes
+      when: "'docker' not in user_groups.stdout.split()"
+
+    - name: Check Docker version
+      command: docker --version
+      register: docker_version
+      changed_when: false
+
+    - name: Show Docker version
+      debug:
+        var: docker_version.stdout
+
+    - name: Check Docker Compose version
+      command: docker-compose --version
+      register: docker_compose_version
+      changed_when: false
+
+    - name: Show Docker Compose version
+      debug:
+        var: docker_compose_version.stdout
+
+    - name: Check if Git is already installed
+      command: git --version
+      register: git_installed
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Install Git on Debian/Ubuntu
+      apt:
+        name: git
+        state: present
+      when:
+        - ansible_os_family == "Debian"
+        - git_installed.rc != 0
+
+    - name: Ensure correct ownership of existing repo directory
+      file:
+        path: /home/ravanuser/ravan-dockerize
+        owner: ravanuser
+        group: ravanuser
+        recurse: yes
+      become: yes
+      when: ansible_user != 'root' and ansible_user != 'ravanuser'  # Optional safety
+
+    - name: Mark the repo path as a safe Git directory
+      command: git config --global --add safe.directory /home/ravanuser/ravan-dockerize
+      become: yes
+      become_user: ravanuser
+
+    - name: Clone or update ravan-dockerize branch 1.6.0 with credentials
+      git:
+        repo: "http://{{ git_username }}:{{ git_password }}@185.23.130.7:8929/devops/ravan/ravan-dockerize.git"
+        dest: /home/ravanuser/ravan-dockerize
+        version: 1.6.0
+        single_branch: yes
+        force: yes
+      become: yes
+      become_user: ravanuser
+
+    - name: Install common packages
+      apt:
+        name:
+          - openssh-server
+          - nano
+          - vim
+          - mc
+          - aptitude
+          - tmux
+          - wget
+          - htop
+          - rsync
+          - curl
+          - ntfs-3g
+          - net-tools
+          - iptables
+          - sudo
+          - lynx
+          - parted
+          - gnupg2
+          - lsb-release
+          - libgif7
+          - libpixman-1-0
+          - telnet
+          - apt-transport-https
+          - ca-certificates
+          - elinks
+          - software-properties-common
+        state: present
+        update_cache: yes
+
+
+    - name: Load Docker images
+      become_user: ravanuser
+      shell: |
+        docker load -i ravan-dockerize/ravan-dockerize-nginx-1.6.0.tar
+        docker load -i ravan-dockerize/ravan-dockerize-db-1.6.0.tar
+        docker load -i ravan-dockerize/ravan-dockerize-convertor-1.6.0.tar
+        docker load -i ravan-dockerize/phpmyadmin-1.6.0.tar
+      args:
+        chdir: /home/ravanuser
+
+    - name: Create Docker volumes
+      docker_volume:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - nginx_data
+        - nginx_config
+        - mariadb_config
+        - scheduledTasks
+        - ssl_data
+
+    - name: Docker Compose Up
+      become_user: ravanuser
+      shell: docker-compose -f docker-compose.yaml up -d
+      args:
+        chdir: /home/ravanuser/ravan-dockerize
