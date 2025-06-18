@@ -1,0 +1,74 @@
+---
+- name: Install Docker, Docker Compose, and Git
+  hosts: new_customer_servers
+  become: yes
+
+  vars:
+    gitlab_address: "185.23.130.7:8929"
+    ravan_branch: "7.6.4.1"
+    ravanplus_branch: "2.1.1"
+    config_php_path: RAVAN/Runtime/kernel/Config/Config.php
+    env_file_path: ravan-dockerize/.env
+    licence_user: 40
+
+  tasks:
+    - name: Read DB_ROOT_PASSWORD from .env
+      shell: grep '^DB_ROOT_PASSWORD=' "{{ env_file_path }}" | cut -d '=' -f2
+      register: db_root_password_result
+
+    - name: Read DB_PASSWORD from .env
+      shell: grep '^DB_PASSWORD=' "{{ env_file_path }}" | cut -d '=' -f2
+      register: ravanpl_db_password_result
+
+    - name: Clone ravan
+      git:
+        repo: "http://{{ git_username }}:{{ git_password }}@{{ gitlab_address }}/devops/ravan/ravan.git"
+        dest: /home/ravanuser/ravan
+        version: "{{ ravan_branch }}"
+        single_branch: yes
+        force: yes
+      become: yes
+      become_user: ravanuser
+
+
+    - name: Clone ravanplus
+      git:
+        repo: "http://{{ git_username }}:{{ git_password }}@{{ gitlab_address }}/devops/ravan/ravanplus.git"
+        dest: /home/ravanuser/ravanplus
+        version: "{{ravanplus_branch}}"
+        single_branch: yes
+        force: yes
+      become: yes
+      become_user: ravanuser
+
+    - name: configuration-step-1
+      shell: |
+	docker cp ravan ravan-nginx-container:/var/www/html/OfficeAS{{ ravan_branch }}
+	docker exec -it ravan-nginx-container chmod -R 770 OfficeAS{{ ravan_branch }}
+	docker exec -it ravan-nginx-container chown -R root:www-data OfficeAS{{ ravan_branch }}
+	docker exec -it ravan-nginx-container ln -s -d OfficeAS{{ ravan_branch }}/ RAVAN
+	docker exec -it ravan-nginx-container rm -r RAVAN/ravanplus
+	docker cp ravanplus ravan-nginx-container:/var/www/html/RAVAN/ravanplus
+	docker exec -it ravan-nginx-container cp Config.php RAVAN/Runtime/kernel/Config/
+	docker exec -it ravan-nginx-container mkdir fontsRAVAN 
+	docker exec -it ravan-nginx-container chmod -R 770 fontsRAVAN && chown root:www-data fontsRAVAN
+	docker exec -it ravan-nginx-container chown -R root:www-data fontsRAVAN
+
+    - name: Set ravanpl password in Config.php inside container
+      shell: >
+        docker exec ravan-nginx-container sed -i
+        's/"db_pass" => "[^"]*"/"db_pass" => "{{ ravanpl_db_password_result.stdout }}"/g'
+        {{ config_php_path }}
+
+    - name: configuration-step-2
+      shell: |
+	docker exec -w /var/www/html/RAVAN/laravel ravan-nginx-container yes | php artisan migrate
+	docker exec -w /var/www/html/RAVAN/laravel ravan-nginx-container yes | php artisan db:seed
+
+    - name: Display 
+      debug:
+        msg: "Generated ravanpl db password: {{ licence_user }}"
+
+    - name: configuration-step-3
+      shell: |
+        docker exec ravan-nginx-container mysql -uroot -p'{{ db_root_password_result.stdout }}' -h 192.168.98.12 officeas -e "update table or other sql query;"
