@@ -67,7 +67,7 @@
 
     - name: Display 
       debug:
-        msg: "Generated ravanpl db password: {{ licence_user }}"
+        msg: "user licence: {{ licence_user }}"
 
     - name: configuration-step-3
       shell: |
