@@ -5,6 +5,11 @@
 
   vars:
     docker_user: "{{ ansible_user }}"  # override if needed
+    env_file_path: ravan-dockerize/.env
+    db_root_password: "{{ lookup('password', '/dev/null length=24 chars=ascii_letters,digits') }}"
+    ravanpl_db_password: "{{ lookup('password', '/dev/null length=20 chars=ascii_letters,digits') }}"
+    backup_config_path: /ScheduledTasks/etc/backup-config
+    gitlab_address: "185.23.130.7:8929"
 
   tasks:
     - name: Update apt cache
@@ -92,7 +97,7 @@
 
     - name: Clone or update ravan-dockerize branch 1.6.0 with credentials
       git:
-        repo: "http://{{ git_username }}:{{ git_password }}@185.23.130.7:8929/devops/ravan/ravan-dockerize.git"
+        repo: "http://{{ git_username }}:{{ git_password }}@{{ gitlab_address }}/devops/ravan/ravan-dockerize.git"
         dest: /home/ravanuser/ravan-dockerize
         version: 1.6.0
         single_branch: yes
@@ -131,6 +136,37 @@
         state: present
         update_cache: yes
 
+    - name: Set DB_ROOT_PASSWORD in .env
+      lineinfile:
+        path: "{{ env_file_path }}"
+        regexp: '^DB_ROOT_PASSWORD='
+        line: "DB_ROOT_PASSWORD={{ db_root_password }}"
+        create: yes
+        backup: yes
+
+    - name: Set DB_PASSWORD in .env
+      lineinfile:
+        path: "{{ env_file_path }}"
+        regexp: '^DB_PASSWORD='
+        line: "DB_PASSWORD={{ ravanpl_db_password }}"
+        create: yes
+        backup: yes
+
+    - name: Read DB_ROOT_PASSWORD from .env
+      shell: grep '^DB_ROOT_PASSWORD=' "{{ env_file_path }}" | cut -d '=' -f2
+      register: db_root_password_result
+
+    - name: Read DB_PASSWORD from .env
+      shell: grep '^DB_PASSWORD=' "{{ env_file_path }}" | cut -d '=' -f2
+      register: ravanpl_db_password_result
+
+    - name: Display generated DB root password
+      debug:
+        msg: "Generated root db password: {{ db_root_password_result.stdout }}"
+
+    - name: Display generated RavanPL DB password
+      debug:
+        msg: "Generated ravanpl db password: {{ ravanpl_db_password_result.stdout }}"
 
     - name: Load Docker images
       become_user: ravanuser
@@ -158,3 +194,26 @@
       shell: docker-compose -f docker-compose.yaml up -d
       args:
         chdir: /home/ravanuser/ravan-dockerize
+
+    - name: Pause for 10 seconds
+      ansible.builtin.pause:
+        seconds: 10
+
+    - name: Set root password in backup-config inside container
+      shell: >
+        docker exec ravan-nginx-container sed -i
+        's/password =.*/password = {{ db_root_password_result.stdout }}/'
+        {{ backup_config_path }}
+
+    - name: alter root password
+      shell: >
+        docker exec ravan-nginx-container mysql -uroot -p"Ehsan123123" -h 192.168.98.12 -e "
+        ALTER USER 'root'@'192.168.98.10' IDENTIFIED BY '{{ db_root_password_result.stdout }}';
+        ALTER USER 'root'@'192.168.98.13' IDENTIFIED BY '{{ db_root_password_result.stdout }}';
+        FLUSH PRIVILEGES;"
+
+    - name: create user and grant permissions in ravan App and db server
+      shell: |
+        docker exec ravan-nginx-container mysql -uroot -p'{{ db_root_password_result.stdout }}' -h 192.168.98.12 -e "CREATE USER 'ravanpl'@'192.168.98.10' IDENTIFIED BY '{{ ravanpl_db_password_result.stdout }}';"
+        docker exec ravan-nginx-container mysql -uroot -p'{{ db_root_password_result.stdout }}' -h 192.168.98.12 -e "GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, CREATE VIEW,EVENT, TRIGGER, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE,EXECUTE ON officeas.* TO 'ravanpl'@'192.168.98.10';"
+        docker exec ravan-nginx-container mysql -uroot -p'{{ db_root_password_result.stdout }}' -h 192.168.98.12 -e "FLUSH PRIVILEGES;"
